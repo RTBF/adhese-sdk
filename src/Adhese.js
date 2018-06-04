@@ -26,7 +26,8 @@
  * @param {string} options.host (optional) the host of your adhese account, available in your support account
  * @param {string} options.poolHost (optional) the host of your CDN
  * @param {string} options.location  can be either a string containing the actual location to be passed to the adserver or a function to be called to retrieve the location
- * @param {boolean} options.safeframe true/false, for switching on the use of the IAB SafeFrame standard, the default value is true
+ * @param {boolean} options.safeframe true/false, for switching on the use of the IAB SafeFrame standard, the default value is false
+ * @param {boolean} options.safeframeContainerID string containing the object property of Ad to be used as id for the safeframe container
  * @param {boolean} options.referrer true/false, for adding the document.referrer to the req as a base64 string, the default value is true
  * @param {boolean} options.url true/false, for adding the window.location.href to the req as a base64 string, the default value is true
  * @return {void}
@@ -74,7 +75,7 @@
  		this.config.safeframe = false;
  	} else {
  	 	this.config.safeframe = options.safeframe;
- 		this.safeframe = new this.SafeFrame(this.config.poolHost);
+ 		this.safeframe = new this.SafeFrame(this.config.poolHost, options.safeframeContainerID);
  	}
 
  	this.registerRequestParameter('rn', Math.round(Math.random()*10000));
@@ -302,7 +303,7 @@ Adhese.prototype.getMultipleRequestUri = function(adArray, options) {
  */
 Adhese.prototype.getSlotName = function(ad) {
 	if(ad.options.position && ad.options.location) {
-		u = this.options.location + ad.options.position;
+		u = ad.options.location + ad.options.position;
 	} else if(ad.options.position) {
 		u = this.config.location + ad.options.position;
 	} else if (ad.options.location) {
@@ -339,7 +340,11 @@ Adhese.prototype.getRequestUri = function(ad, options) {
  Adhese.prototype.syncUser = function(network, identification) {
  	if (network=="rubicon") {
  		this.rubiconUserSync(identification);
- 	}
+ 	} else if (network=="improvedigital") {
+		this.improvedigitalUserSync(identification);
+	} else if (network=="pubmatic") {
+                this.pubmaticUserSync(identification);
+        }
  };
 /**
  * This function can be used in a SafeFrame implementation to create a preview request and write out the result.
@@ -382,3 +387,17 @@ Adhese.prototype.getRequestUri = function(ad, options) {
      });
      adhSelf.getSfPreview(sf_array);
  };
+
+
+/**
+ * This function is used for saving requests in a prebid environment
+ * @param  {string} key        The format uid used for this ad
+ * @param  {object} identification The Ad object
+ * @return {void}
+ */
+Adhese.prototype.registerResponse = function(key, ad) {
+	if (!adhese.responses) {
+      adhese.responses = new Object();
+    }
+	adhese.responses[key] = ad;
+}
