@@ -74,8 +74,8 @@
  	if (typeof options.safeframe == 'undefined' || options.safeframe == false) {
  		this.config.safeframe = false;
  	} else {
- 	 	this.config.safeframe = options.safeframe;
- 		this.safeframe = new this.SafeFrame(this.config.poolHost, options.safeframeContainerID);
+		  this.config.safeframe = options.safeframe;
+		  this.initSafeFrame(options.safeframeContainerID);
  	}
 
  	this.registerRequestParameter('rn', Math.round(Math.random()*10000));
@@ -108,6 +108,16 @@
 
  	this.helper.log('Adhese: initialized with config:', JSON.stringify(this.config));
  };
+
+Adhese.prototype.initSafeFrame = function(safeframeContainerID) {
+	if (!this.safeframe) {
+		if (safeframeContainerID) {
+			this.safeframe = new this.SafeFrame(this.config.poolHost, safeframeContainerID);	
+		} else {
+			this.safeframe = new this.SafeFrame(this.config.poolHost);
+		}		
+	}	
+}
 
 /**
  * Function to add target parameters to an Adhese instance. These parameters will be appended to each request.
@@ -159,9 +169,17 @@ Adhese.prototype.addRequestString = function(value) {
 	var that = this;
  	this.helper.log(formatCode, JSON.stringify(options));
 
+	// if safeframe, check and init
+	if (options && options.safeframe) {
+		if (options.safeframeContainerID) {
+			this.initSafeFrame(options.safeframeContainerID);
+		} else {
+			this.initSafeFrame();
+		}
+	}
+
   	var ad = new this.Ad(this, formatCode, options);
-	ad.options.slotName = this.getSlotName(ad);
- 	
+	 	
 	if (this.previewActive) {
  		var pf = this.previewFormats
 		for (var key in pf) {
@@ -180,7 +198,9 @@ Adhese.prototype.addRequestString = function(value) {
                 addEventListener("load", that.showPreviewSign.bind(that))
 			}
 		}
- 	}
+	 }
+	 
+	 ad.options.slotName = this.getSlotName(ad);
 
  	this.ads.push([formatCode, ad]);
  	if (ad.options.write) {
@@ -198,7 +218,7 @@ Adhese.prototype.addRequestString = function(value) {
  * @return {void}
  */
  Adhese.prototype.write = function(ad) {
- 	if (this.config.safeframe) {
+ 	if (this.config.safeframe || ad.safeframe) {
  		var adUrl = "";
  		if (this.previewActive && ad.swfSrc) {
  			adUrl = ad.swfSrc;
@@ -208,6 +228,7 @@ Adhese.prototype.addRequestString = function(value) {
 
 		this.helper.log('Adhese.write: request uri: ' + adUrl + ', safeframe enabled');
 
+		var safeframeContainerID = this.safeframe.containerID;
  		AdheseAjax.request({
     		url: adUrl,
     		method: 'get',
@@ -215,7 +236,7 @@ Adhese.prototype.addRequestString = function(value) {
 		}).done(function(result) {
 			adhese.safeframe.addPositions(result);
 			for (var i = result.length - 1; i >= 0; i--) {
-				adhese.safeframe.render(result[i].adType);
+				adhese.safeframe.render(result[i][safeframeContainerID]);
     		};
 		});
 
@@ -344,6 +365,8 @@ Adhese.prototype.getRequestUri = function(ad, options) {
 		this.improvedigitalUserSync(identification);
 	} else if (network=="pubmatic") {
                 this.pubmaticUserSync(identification);
+        } else if (network=="spotx") {
+                this.spotxUserSync(identification);
         }
  };
 /**
